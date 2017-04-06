@@ -11,6 +11,9 @@ void Config::mount()
 }
 
 void Config::read(const char* fileName) {
+  strcpy(apiEndpoint, "http://app.smogly.pl/api/v1/metering/");
+  strcpy(token, "9539f7d1");
+
   if (!SPIFFS.exists(fileName)) {
     Serial.println("Cannot find config file");
     return;
@@ -27,11 +30,14 @@ void Config::read(const char* fileName) {
   configFile.readBytes(buf.get(), size);
   DynamicJsonBuffer jsonBuffer;
   JsonObject& json = jsonBuffer.parseObject(buf.get());
+  configFile.close();
   if (!json.success()) {
     Serial.println("Failed to load json config");
     return;
   }
-  strcpy(apiEndpoint, json["apiEndpoint"]);
+
+  strncpy(apiEndpoint, json["apiEndpoint"], PARAM_LEN);
+  strncpy(token, json["token"], PARAM_LEN);
 }
 
 void Config::save(const char* fileName)
@@ -39,12 +45,14 @@ void Config::save(const char* fileName)
   DynamicJsonBuffer jsonBuffer;
   JsonObject& json = jsonBuffer.createObject();
   json["apiEndpoint"] = apiEndpoint;
+  json["token"] = token;
   File configFile = SPIFFS.open(fileName, "w");
   if (!configFile) {
     Serial.println("failed to open config file for writing");
   }
   json.printTo(configFile);
   configFile.close();
+  SPIFFS.end();
 }
 
 void Config::reset()

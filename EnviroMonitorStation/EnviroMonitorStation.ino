@@ -22,13 +22,13 @@
 #include "PMS3003.h"
 
 //set debug mode, use only in testing
-#define DEBUG_MODE    true
+#define DEBUG_MODE false
 #define TIME_BETWEEN_METERINGS 2000
 
 #define HEAT_PIN_SWITCH D4
 #define TARGET_TEMP 30.0
 
-char apiEndpoint[130] = "http://app.smogly.pl/api/v1/metering/";
+char apiEndpoint[130] = "";
 char token[130] = "";
 
 SmoglyDHT dht;
@@ -48,6 +48,8 @@ void setup() {
   pinMode(HEAT_PIN_SWITCH, OUTPUT);
 
   config.read("/config.json");
+  strcpy(apiEndpoint, config.apiEndpoint);
+  strcpy(token, config.token);
 
   WiFiManagerParameter custom_apiEndpoint("apiEndpoint", "Smogly URL", apiEndpoint, 130);
   WiFiManagerParameter custom_token("token", "Token", token, 130);
@@ -121,22 +123,14 @@ String createPayload(float h, float t, long pm25, long pm10)
 {
   StaticJsonBuffer<300> jsonBuffer;
   JsonObject& root = jsonBuffer.createObject();
-  root["pm01"] = 0;
   root["pm25"] = pm25;
   root["pm10"] = pm10;
   root["temp_out1"] = t;
-  root["temp_out2"] = 0;
-  root["temp_out3"] = 0;
-  root["temp_int_air1"] = 0;
   root["hum_out1"] = h;
-  root["hum_out2"] = 0;
-  root["hum_out3"] = 0;
-  root["hum_int_air1"] = 0;
-  root["rssi"] = 0;
-  root["bpress_out1"] = 0;
   root["hw_id"] = "0";
   root["token"] = token;
   String output;
   root.printTo(output);
+  Serial.println(output);
   return output;
 }
