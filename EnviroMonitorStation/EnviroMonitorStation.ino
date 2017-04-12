@@ -20,6 +20,7 @@
 #include "Config.h"
 #include "SmoglyDHT.h"
 #include "PMS3003.h"
+#include "SmoglyHTU.h"
 
 //set debug mode, use only in testing
 #define DEBUG_MODE false
@@ -33,6 +34,7 @@ char token[130] = "";
 
 SmoglyDHT dht;
 PMS3003 pms;
+SmoglyHTU htu;
 
 void setup() {
   Serial.begin(115200);
@@ -78,6 +80,8 @@ void setup() {
   dht.setup();
   Serial.println("Initializing PMS");
   pms.init();
+  Serial.println("Initializing HTU");
+  htu.setup();
   delay(TIME_BETWEEN_METERINGS);
 }
 
@@ -109,7 +113,10 @@ void loop() {
       Serial.print("\tHeater ON\n");
     }
 
-    String output = createPayload(h,t, pm25, pm10);
+    const float h2 = htu.readHumidity();
+    const float t2 = htu.readTemperature();
+
+    String output = createPayload(h,t, pm25, pm10, h2, t2);
     HTTPClient http;
     http.begin(apiEndpoint);
     http.addHeader("Content-Type", "application/json");
@@ -119,7 +126,7 @@ void loop() {
     delay(TIME_BETWEEN_METERINGS);
 }
 
-String createPayload(float h, float t, long pm25, long pm10)
+String createPayload(float h, float t, long pm25, long pm10, const float h2, const float t2)
 {
   StaticJsonBuffer<300> jsonBuffer;
   JsonObject& root = jsonBuffer.createObject();
@@ -127,6 +134,8 @@ String createPayload(float h, float t, long pm25, long pm10)
   root["pm10"] = pm10;
   root["temp_out1"] = t;
   root["hum_out1"] = h;
+  root["temp_out2"] = t2;
+  root["hum_out2"] = h2;
   root["hw_id"] = "0";
   root["token"] = token;
   String output;
