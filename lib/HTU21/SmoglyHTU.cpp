@@ -32,7 +32,8 @@ float SmoglyHTU::readHumidity() {
   Wire.requestFrom(HTU_ADDR, 3);
   while (!Wire.available()) {}
 
-  const uint16_t h = Wire.read() << 8 | Wire.read();
+  uint16_t h;
+  Wire.readBytes((char *)&h, sizeof(h));
   const uint8_t crc = Wire.read();
   return -6 + 125.0 * h / (1<<16);
 }
@@ -45,7 +46,8 @@ float SmoglyHTU::readTemperature() {
   Wire.requestFrom(HTU_ADDR, 3);
   while (!Wire.available()) {}
 
-  const uint16_t t = Wire.read() << 8 | Wire.read();
+  uint16_t t;
+  Wire.readBytes((char *)&t, sizeof(t));
   const uint8_t crc = Wire.read();
   return -46.85 + 175.72 * t / (1<<16);
 }
