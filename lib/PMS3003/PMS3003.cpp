@@ -90,8 +90,10 @@ SoftwareSerial localPms(PMS_PIN_RX, PMS_PIN_TX); // Initialize serial communiati
 #define localPmsDataLen 24 // according to spec PMS3003 has 24 bytes long message
 uint8_t buf[localPmsDataLen];
 int idx = 0;
+long pm25 = 0;
+long pm10 = 0;
 
-void PMS3003::init() {
+void PMS3003::setup() {
   localPms.begin(PMS_BAUDRATE); // PMS 3003 UART has baud rate 9600
   pinMode(PMS_PIN_SET, OUTPUT);
   digitalWrite(PMS_PIN_SET, HIGH);
@@ -144,4 +146,12 @@ void PMS3003::read() {
     pm25 = word(buf[12], buf[13]);
     pm10 = word(buf[14], buf[15]);
   }
+}
+
+long PMS3003::getPM25() {
+  return pm25;
+}
+
+long PMS3003::getPM10() {
+  return pm10;
 }

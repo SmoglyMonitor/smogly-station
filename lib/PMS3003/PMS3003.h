@@ -1,8 +1,8 @@
 class PMS3003
 {
 public:
-  void init();
+  void setup();
   void read();
-  long pm25;
-  long pm10;
+  long getPM25();
+  long getPM10();
 };

@@ -1,15 +1,5 @@
 #include <Arduino.h>
 
-/*
-####################################################
-# EnviroMonitor.ino
-# Part of EnviroMonitor project
-# https://github.com/EnviroMonitor
-# OpenSource Air Quality Monitoring Solution
-# Copyright © 2016 by EnviroMonitor
-####################################################
-*/
-
 #include <ESP8266WiFi.h>
 #include <DNSServer.h>
 #include <ESP8266WebServer.h>
@@ -18,21 +8,16 @@
 #include <ArduinoJson.h>
 #include <ESP8266HTTPClient.h>
 #include "Config.h"
-#include "SmoglyDHT.h"
 #include "PMS3003.h"
 #include "SmoglyHTU.h"
 
 //set debug mode, use only in testing
-#define DEBUG_MODE false
+#define DEBUG_MODE true
 #define TIME_BETWEEN_METERINGS 2000
-
-#define HEAT_PIN_SWITCH D4
-#define TARGET_TEMP 30.0
 
 char apiEndpoint[130] = "";
 char token[130] = "";
 
-SmoglyDHT dht;
 PMS3003 pms;
 SmoglyHTU htu;
 
@@ -46,8 +31,6 @@ void setup() {
   if (DEBUG_MODE) {
     config.reset();
   }
-
-  pinMode(HEAT_PIN_SWITCH, OUTPUT);
 
   config.read("/config.json");
   strcpy(apiEndpoint, config.apiEndpoint);
@@ -76,66 +59,45 @@ void setup() {
 
   Serial.print("Local IP set to: ");
   Serial.println(WiFi.localIP());
-  Serial.println("Initializing DHT");
-  dht.setup();
-  Serial.println("Initializing PMS");
-  pms.init();
-  Serial.println("Initializing HTU");
+
+  Serial.print("Initializing PMS...");
+  pms.setup();
+  Serial.println("Done");
+
+  Serial.print("Initializing HTU...");
   htu.setup();
+  Serial.println("Done");
   delay(TIME_BETWEEN_METERINGS);
 }
 
 void loop() {
-    // Reading temperature or humidity takes about 250 milliseconds!
-    // Sensor readings may also be up to 2 seconds 'old' (its a very slow sensor)
-    float h = dht.readHumidity();
-    // Read temperature as Celsius (the default)
-    float t = dht.readTemperature();
+  Serial.print("Performing measurement...");
+  pms.read();
+  const long pm25 = pms.getPM25();
+  const long pm10 = pms.getPM10();
+  Serial.print("PMS Done...");
+  const float humidity = htu.readHumidity();
+  const float temperature = htu.readTemperature();
+  Serial.println("HTU Done");
 
-    pms.read();
-    long pm25 = pms.pm25;
-    long pm10 = pms.pm10;
+  String output = createPayload(humidity, temperature, pm25, pm10);
+  HTTPClient http;
+  http.begin(apiEndpoint);
+  http.addHeader("Content-Type", "application/json");
+  http.POST(output);
+  http.end();
 
-    // Check if any reads failed and exit early (to try again).
-    if (isnan(h) || isnan(t)) {
-      Serial.println("Failed to read from DHT sensor!");
-      return;
-    }
-
-    if (t >= TARGET_TEMP) // we're going to measure humidity instead of temp
-    {
-      digitalWrite(HEAT_PIN_SWITCH, LOW);
-      Serial.print(t);
-      Serial.print("\tHeater OFF\n");
-    } else {
-      digitalWrite(HEAT_PIN_SWITCH, HIGH);
-      Serial.print(t);
-      Serial.print("\tHeater ON\n");
-    }
-
-    const float h2 = htu.readHumidity();
-    const float t2 = htu.readTemperature();
-
-    String output = createPayload(h,t, pm25, pm10, h2, t2);
-    HTTPClient http;
-    http.begin(apiEndpoint);
-    http.addHeader("Content-Type", "application/json");
-    http.POST(output);
-    http.end();
-    // Wait a few seconds between measurements.
-    delay(TIME_BETWEEN_METERINGS);
+  delay(TIME_BETWEEN_METERINGS);
 }
 
-String createPayload(float h, float t, long pm25, long pm10, const float h2, const float t2)
+String createPayload(float h, float t, long pm25, long pm10)
 {
   StaticJsonBuffer<300> jsonBuffer;
   JsonObject& root = jsonBuffer.createObject();
   root["pm25"] = pm25;
   root["pm10"] = pm10;
-  root["temp_out1"] = t;
-  root["hum_out1"] = h;
-  root["temp_out2"] = t2;
-  root["hum_out2"] = h2;
+  root["temperature"] = t;
+  root["humidity"] = h;
   root["hw_id"] = "0";
   root["token"] = token;
   String output;
